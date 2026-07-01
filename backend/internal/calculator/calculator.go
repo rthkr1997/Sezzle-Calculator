@@ -1,7 +1,6 @@
 package calculator
 
 import (
-	"errors"
 	"fmt"
 	"math"
 	"strconv"
@@ -9,10 +8,41 @@ import (
 	"unicode"
 )
 
+type ErrorCode string
+
+const (
+	ErrorCodeInvalidExpression ErrorCode = "invalid_expression"
+	ErrorCodeDivisionByZero    ErrorCode = "division_by_zero_not_allowed"
+	ErrorCodeNegativeSqrt      ErrorCode = "square_root_of_negative_number_not_allowed"
+)
+
+type CalculatorError struct {
+	Code    ErrorCode
+	Message string
+	Err     error
+}
+
+func (e *CalculatorError) Error() string {
+	if e == nil {
+		return ""
+	}
+	if e.Message != "" {
+		return e.Message
+	}
+	return string(e.Code)
+}
+
+func (e *CalculatorError) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	return e.Err
+}
+
 var (
-	ErrInvalidExpression = errors.New("invalid expression")
-	ErrDivisionByZero    = errors.New("division by zero")
-	ErrNegativeSqrt      = errors.New("cannot take square root of a negative number")
+	ErrInvalidExpression = &CalculatorError{Code: ErrorCodeInvalidExpression, Message: "invalid expression"}
+	ErrDivisionByZero    = &CalculatorError{Code: ErrorCodeDivisionByZero, Message: "division by zero is not allowed"}
+	ErrNegativeSqrt      = &CalculatorError{Code: ErrorCodeNegativeSqrt, Message: "square root of a negative number is not allowed"}
 )
 
 type tokenType int
@@ -32,10 +62,21 @@ type token struct {
 
 var precedence = map[string]int{"+": 1, "-": 1, "*": 2, "/": 2, "^": 3, "u-": 4}
 
+func wrapCalculatorError(code ErrorCode, base error, format string, args ...any) error {
+	msg := fmt.Sprintf(format, args...)
+	if base == nil {
+		base = ErrInvalidExpression
+	}
+	if code == ErrorCodeInvalidExpression {
+		return &CalculatorError{Code: code, Message: fmt.Sprintf("%s: %s", base.Error(), msg), Err: base}
+	}
+	return &CalculatorError{Code: code, Message: base.Error(), Err: base}
+}
+
 func Calculate(expression string) (float64, error) {
 	expression = strings.TrimSpace(expression)
 	if expression == "" {
-		return 0, fmt.Errorf("%w: expression is required", ErrInvalidExpression)
+		return 0, wrapCalculatorError(ErrorCodeInvalidExpression, ErrInvalidExpression, "expression is required")
 	}
 	tokens, err := tokenize(expression)
 	if err != nil {
@@ -50,7 +91,7 @@ func Calculate(expression string) (float64, error) {
 
 func Operation(op string, values []float64) (float64, error) {
 	if len(values) == 0 {
-		return 0, fmt.Errorf("%w: at least one value is required", ErrInvalidExpression)
+		return 0, wrapCalculatorError(ErrorCodeInvalidExpression, ErrInvalidExpression, "at least one value is required")
 	}
 	switch op {
 	case "add":
@@ -82,24 +123,24 @@ func Operation(op string, values []float64) (float64, error) {
 		return r, nil
 	case "power":
 		if len(values) != 2 {
-			return 0, fmt.Errorf("%w: power requires exactly two values", ErrInvalidExpression)
+			return 0, wrapCalculatorError(ErrorCodeInvalidExpression, ErrInvalidExpression, "power requires exactly two values")
 		}
 		return math.Pow(values[0], values[1]), nil
 	case "sqrt":
 		if len(values) != 1 {
-			return 0, fmt.Errorf("%w: sqrt requires exactly one value", ErrInvalidExpression)
+			return 0, wrapCalculatorError(ErrorCodeInvalidExpression, ErrInvalidExpression, "sqrt requires exactly one value")
 		}
 		if values[0] < 0 {
-			return 0, ErrNegativeSqrt
+			return 0, wrapCalculatorError(ErrorCodeNegativeSqrt, ErrNegativeSqrt, "cannot take square root of a negative number")
 		}
 		return math.Sqrt(values[0]), nil
 	case "percentage":
 		if len(values) != 1 {
-			return 0, fmt.Errorf("%w: percentage requires exactly one value", ErrInvalidExpression)
+			return 0, wrapCalculatorError(ErrorCodeInvalidExpression, ErrInvalidExpression, "percentage requires exactly one value")
 		}
 		return values[0] / 100, nil
 	default:
-		return 0, fmt.Errorf("%w: unsupported operation %q", ErrInvalidExpression, op)
+		return 0, wrapCalculatorError(ErrorCodeInvalidExpression, ErrInvalidExpression, "unsupported operation %q", op)
 	}
 }
 
@@ -120,13 +161,13 @@ func tokenize(input string) ([]token, error) {
 					dots++
 				}
 				if dots > 1 {
-					return nil, fmt.Errorf("%w: malformed number", ErrInvalidExpression)
+					return nil, wrapCalculatorError(ErrorCodeInvalidExpression, ErrInvalidExpression, "malformed number")
 				}
 				i++
 			}
 			lit := input[start:i]
 			if lit == "." {
-				return nil, fmt.Errorf("%w: malformed number", ErrInvalidExpression)
+				return nil, wrapCalculatorError(ErrorCodeInvalidExpression, ErrInvalidExpression, "malformed number")
 			}
 			tokens = append(tokens, token{number, lit})
 			expectingOperand = false
@@ -139,7 +180,7 @@ func tokenize(input string) ([]token, error) {
 			}
 			name := strings.ToLower(input[start:i])
 			if name != "sqrt" {
-				return nil, fmt.Errorf("%w: unknown function %q", ErrInvalidExpression, name)
+				return nil, wrapCalculatorError(ErrorCodeInvalidExpression, ErrInvalidExpression, "unknown function %q", name)
 			}
 			tokens = append(tokens, token{function, name})
 			expectingOperand = true
@@ -154,13 +195,13 @@ func tokenize(input string) ([]token, error) {
 			expectingOperand = false
 		case '%':
 			if expectingOperand {
-				return nil, fmt.Errorf("%w: unexpected percentage", ErrInvalidExpression)
+				return nil, wrapCalculatorError(ErrorCodeInvalidExpression, ErrInvalidExpression, "unexpected percentage")
 			}
 			tokens = append(tokens, token{operator, "%"})
 			expectingOperand = false
 		case '+', '*', '/', '^':
 			if expectingOperand {
-				return nil, fmt.Errorf("%w: unexpected operator %q", ErrInvalidExpression, input[i])
+				return nil, wrapCalculatorError(ErrorCodeInvalidExpression, ErrInvalidExpression, "unexpected operator %q", input[i])
 			}
 			tokens = append(tokens, token{operator, string(input[i])})
 			expectingOperand = true
@@ -172,7 +213,7 @@ func tokenize(input string) ([]token, error) {
 				expectingOperand = true
 			}
 		default:
-			return nil, fmt.Errorf("%w: unsupported character %q", ErrInvalidExpression, input[i])
+			return nil, wrapCalculatorError(ErrorCodeInvalidExpression, ErrInvalidExpression, "unsupported character %q", input[i])
 		}
 		i++
 	}
@@ -219,7 +260,7 @@ func toRPN(tokens []token) ([]token, error) {
 				output = append(output, top)
 			}
 			if !found {
-				return nil, fmt.Errorf("%w: mismatched parentheses", ErrInvalidExpression)
+				return nil, wrapCalculatorError(ErrorCodeInvalidExpression, ErrInvalidExpression, "mismatched parentheses")
 			}
 			if len(stack) > 0 && stack[len(stack)-1].typeOf == function {
 				output = append(output, stack[len(stack)-1])
@@ -231,7 +272,7 @@ func toRPN(tokens []token) ([]token, error) {
 		top := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
 		if top.typeOf == leftParen || top.typeOf == rightParen {
-			return nil, fmt.Errorf("%w: mismatched parentheses", ErrInvalidExpression)
+			return nil, wrapCalculatorError(ErrorCodeInvalidExpression, ErrInvalidExpression, "mismatched parentheses")
 		}
 		output = append(output, top)
 	}
@@ -242,7 +283,7 @@ func evalRPN(tokens []token) (float64, error) {
 	var stack []float64
 	pop := func() (float64, error) {
 		if len(stack) == 0 {
-			return 0, fmt.Errorf("%w: missing operand", ErrInvalidExpression)
+			return 0, wrapCalculatorError(ErrorCodeInvalidExpression, ErrInvalidExpression, "missing operand")
 		}
 		v := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
@@ -253,7 +294,7 @@ func evalRPN(tokens []token) (float64, error) {
 		case number:
 			v, err := strconv.ParseFloat(t.value, 64)
 			if err != nil {
-				return 0, fmt.Errorf("%w: malformed number", ErrInvalidExpression)
+				return 0, wrapCalculatorError(ErrorCodeInvalidExpression, ErrInvalidExpression, "malformed number")
 			}
 			stack = append(stack, v)
 		case function:
@@ -262,7 +303,7 @@ func evalRPN(tokens []token) (float64, error) {
 				return 0, err
 			}
 			if v < 0 {
-				return 0, ErrNegativeSqrt
+				return 0, wrapCalculatorError(ErrorCodeNegativeSqrt, ErrNegativeSqrt, "cannot take square root of a negative number")
 			}
 			stack = append(stack, math.Sqrt(v))
 		case operator:
@@ -299,18 +340,18 @@ func evalRPN(tokens []token) (float64, error) {
 				stack = append(stack, left*right)
 			case "/":
 				if right == 0 {
-					return 0, ErrDivisionByZero
+					return 0, wrapCalculatorError(ErrorCodeDivisionByZero, ErrDivisionByZero, "division by zero")
 				}
 				stack = append(stack, left/right)
 			case "^":
 				stack = append(stack, math.Pow(left, right))
 			default:
-				return 0, fmt.Errorf("%w: unknown operator", ErrInvalidExpression)
+				return 0, wrapCalculatorError(ErrorCodeInvalidExpression, ErrInvalidExpression, "unknown operator")
 			}
 		}
 	}
 	if len(stack) != 1 {
-		return 0, fmt.Errorf("%w: unresolved operands", ErrInvalidExpression)
+		return 0, wrapCalculatorError(ErrorCodeInvalidExpression, ErrInvalidExpression, "unresolved operands")
 	}
 	return stack[0], nil
 }

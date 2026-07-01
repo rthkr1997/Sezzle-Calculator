@@ -52,3 +52,17 @@ func TestOperationMultipleValues(t *testing.T) {
 		t.Fatalf("divide got %v err %v", got, err)
 	}
 }
+
+func TestDefinedCalculatorErrors(t *testing.T) {
+	_, err := Calculate("")
+	if !errors.Is(err, ErrInvalidExpression) {
+		t.Fatalf("expected invalid expression error, got %v", err)
+	}
+	var calcErr *CalculatorError
+	if !errors.As(err, &calcErr) {
+		t.Fatalf("expected calculator error, got %T", err)
+	}
+	if calcErr.Code != ErrorCodeInvalidExpression {
+		t.Fatalf("expected invalid expression code, got %q", calcErr.Code)
+	}
+}

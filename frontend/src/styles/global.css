@@ -11,14 +11,37 @@ h1 { margin: 0; font-size: clamp(2rem, 6vw, 3.5rem); }
 .display-panel { display: grid; gap: .75rem; background: #f7f9fc; border: 1px solid #dce3ef; padding: 1rem; border-radius: 20px; }
 label { font-weight: 700; }
 input { width: 100%; border: 1px solid #cbd5e1; border-radius: 14px; padding: 1rem; font-size: 1.15rem; }
-.result { display: block; background: #172033; color: white; border-radius: 16px; padding: 1rem; font-size: 2rem; font-weight: 800; overflow-wrap: anywhere; }
+.result { display: block; background: #172033; color: white; border-radius: 16px; padding: 1rem; font-size: 2rem; font-weight: 800; overflow-wrap: anywhere; min-height: 3rem; }
+.result.empty { color: #cbd5e1; font-size: 1rem; font-weight: 600; }
 .error { margin: 0; color: #a51616; font-weight: 700; }
 .primary { border: 0; border-radius: 14px; padding: .95rem 1rem; background: #5261ff; color: white; font-weight: 800; cursor: pointer; }
 .primary:disabled { opacity: .45; cursor: not-allowed; }
 .keypad { display: grid; grid-template-columns: repeat(5, 1fr); gap: .6rem; margin-top: 1rem; }
 .keypad button { border: 1px solid #dce3ef; border-radius: 16px; background: #fff; padding: 1rem .5rem; cursor: pointer; font-weight: 800; }
 .keypad button:hover { background: #f1f5f9; }
-.history { margin-top: 1rem; border-top: 1px solid #dce3ef; padding-top: 1rem; color: #3a465a; }
+.history {
+  position: relative;
+  margin-top: 1rem;
+  border-top: 1px solid #dce3ef;
+  padding-top: 1rem;
+  color: #3a465a;
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+.history::after {
+  content: "";
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2.5rem;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,1) 100%);
+}
 .history h2 { font-size: 1rem; margin: 0 0 .5rem; }
 .history p { margin: .25rem 0; overflow-wrap: anywhere; }
+.history::-webkit-scrollbar { width: 10px; }
+.history::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 999px; }
+.history::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
 @media (max-width: 560px) { .calculator-shell { padding: .75rem; } .calculator-card { padding: 1rem; border-radius: 20px; } .keypad { grid-template-columns: repeat(4, 1fr); } }

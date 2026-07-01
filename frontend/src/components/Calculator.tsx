@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useMemo, useRef, useState } from 'react';
 import { calculateExpression } from '../api/calculatorApi';
 
 const buttons = ['7','8','9','/','sqrt(','4','5','6','*','^','1','2','3','-','%','0','.','(',')','+'];
@@ -12,6 +12,7 @@ export function Calculator() {
   const [result, setResult] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [history, setHistory] = useState<string[]>([]);
+  const expressionRef = useRef<HTMLInputElement | null>(null);
   const canSubmit = useMemo(() => expression.trim().length > 0 && !error, [expression, error]);
 
   const updateExpression = (next: string) => {
@@ -24,7 +25,27 @@ export function Calculator() {
     setExpression(next);
   };
 
-  const append = (value: string) => updateExpression(expression + value);
+  const insertAtCursor = (value: string) => {
+    const element = expressionRef.current;
+    if (!element) {
+      updateExpression(expression + value);
+      return;
+    }
+    const { selectionStart, selectionEnd } = element;
+    if (selectionStart == null || selectionEnd == null) {
+      updateExpression(expression + value);
+      return;
+    }
+    const next = expression.slice(0, selectionStart) + value + expression.slice(selectionEnd);
+    updateExpression(next);
+    requestAnimationFrame(() => {
+      element.focus();
+      const cursor = selectionStart + value.length;
+      element.setSelectionRange(cursor, cursor);
+    });
+  };
+
+  const append = insertAtCursor;
 
   const submit = async (event?: FormEvent) => {
     event?.preventDefault();
@@ -47,14 +68,18 @@ export function Calculator() {
     <main className="calculator-shell">
       <section className="calculator-card" aria-label="Calculator">
         <div className="hero">
-          <p className="eyebrow">Full-stack calculator</p>
+          <p className="eyebrow">Sezzle Full-stack calculator</p>
           <h1>Expression Calculator</h1>
           <p>Use chained operations, parentheses, exponentiation, square roots, and percentages.</p>
         </div>
         <form onSubmit={submit} className="display-panel">
           <label htmlFor="expression">Expression</label>
-          <input id="expression" value={expression} onChange={(e) => updateExpression(e.target.value)} placeholder="12 + 4 * (8 - 3) / 2" autoComplete="off" />
-          {result !== null && <output className="result" aria-live="polite">{result}</output>}
+          <input id="expression" ref={expressionRef} value={expression} onChange={(e) => updateExpression(e.target.value)} placeholder="Let's calculate..." autoComplete="off" />
+          {result !== null && (
+            <output className="result" aria-live="polite">
+              Answer: {result}
+            </output>
+          )}
           {error && <p className="error" role="alert">{error}</p>}
           <button className="primary" type="submit" disabled={!canSubmit}>Calculate</button>
         </form>

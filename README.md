@@ -1,95 +1,113 @@
-# Full-Stack Calculator
+﻿# Full-Stack Calculator
 
-A maintainable full-stack calculator application with a React + TypeScript frontend and a Go REST API backend. It supports full expressions, not only one- or two-operand requests.
+A full-stack calculator application built with a React + TypeScript frontend and a Go backend microservice.
 
-## Features
+## What this project includes
 
-- Basic operations: addition, subtraction, multiplication, division
-- Advanced operations: exponentiation, square root, percentage
-- Multi-step expressions with parentheses, for example: `12 + 4 * (8 - 3) / 2`
-- REST API validation and JSON responses
-- Frontend input validation, API error handling, responsive layout, and recent calculation history
-- Unit tests for backend calculator logic, API handlers, and frontend UI behavior
-- Dockerfiles and Docker Compose for local full-stack deployment
+- A browser calculator UI built with React and TypeScript
+- A Go backend REST API that computes mathematical expressions
+- Support for parentheses, powers, square root, and percentages
+- Friendly error handling for invalid math and division by zero
+- Unit tests for both frontend and backend
+- Docker Compose for easy local deployment
 
-## Repository Layout
+## Project structure
 
-```text
+
+```
 calculator-app/
   backend/
-    cmd/server/              # Go HTTP server entrypoint
-    internal/calculator/     # Expression parser/evaluator and operation service
+    cmd/server/              # Go server entrypoint
+    internal/calculator/     # Expression parser and calculator logic
     internal/httpapi/        # REST API handlers
+    go.mod                   # Go module file
   frontend/
-    src/api/                 # API client
-    src/components/          # React calculator UI
-    src/styles/              # CSS
-    src/__tests__/           # Frontend tests
-  docker-compose.yml
+    src/api/                 # API service for backend calls
+    src/components/          # Calculator UI component
+    src/styles/              # CSS and design styles
+    src/__tests__/           # Frontend unit tests
+    package.json             # Node dependencies and scripts
+  docker-compose.yml         # Full-stack Docker deployment
+  README.md                  # Project documentation
 ```
 
-## Backend Setup
+## Setup for beginners
 
-Requirements: Go 1.22+
+### 1. Install required software
 
-```bash
-cd backend
-go test ./... -cover
-PORT=8080 go run ./cmd/server
-```
+You need these tools installed on your computer:
 
-The backend runs on `http://localhost:8080` by default.
+- Go 1.22 or newer
+- Node.js 20 or newer
+- Docker and Docker Compose (optional, only if you want containers)
 
-## Frontend Setup
+### 2. Install frontend packages
 
-Requirements: Node.js 20+ or 22+
+From the project root, run:
 
 ```bash
 cd frontend
 npm install
+```
+
+This downloads the libraries needed for the React app.
+
+### 3. Run the backend server
+
+Open a new terminal window and run these commands from the project root:
+
+```bash
+cd backend
+go run ./cmd/server
+```
+
+This starts the backend API on:
+
+- `http://localhost:8080`
+
+### 4. Run the frontend app
+
+Open another terminal window and run these commands from the project root:
+
+```bash
+cd frontend
 npm run dev
 ```
 
-The frontend runs on `http://localhost:5173` and calls `http://localhost:8080` by default.
+Then open the app in your browser at:
 
-To point the frontend at another API URL:
+- `http://localhost:5173`
 
-```bash
-VITE_API_URL=http://localhost:8080 npm run dev
-```
+The frontend will send calculations to the backend automatically.
 
-## Run Tests and Coverage
+## Run everything with Docker (from project root)
 
-Backend:
-
-```bash
-cd backend
-go test ./... -coverprofile=coverage.out
-go tool cover -func=coverage.out
-```
-
-Frontend:
-
-```bash
-cd frontend
-npm install
-npm test
-```
-
-Vitest writes coverage output under `frontend/coverage/`.
-
-## Docker Compose
+If you want to run both frontend and backend together with Docker, use this command in the project root:
 
 ```bash
 docker compose up --build
 ```
 
+When Docker is ready:
+
 - Frontend: `http://localhost:3000`
 - Backend: `http://localhost:8080`
 
-## API Usage
+> Docker uses the frontend container on internal port `80`, then maps it to host port `3000`.
 
-### Health Check
+## Quick how-to use
+
+1. Start the backend server from `backend/`.
+2. Start the frontend app from `frontend/`.
+3. Open the browser at `http://localhost:5173`.
+4. Type an expression like `12 + 4 * (8 - 3) / 2`.
+5. Press the calculate button and see the result.
+
+## API examples
+
+### Health check
+
+Run this from any terminal:
 
 ```bash
 curl http://localhost:8080/health
@@ -101,7 +119,9 @@ Response:
 {"status":"ok"}
 ```
 
-### Calculate an Expression
+### Calculate an expression
+
+Run this from any terminal:
 
 ```bash
 curl -X POST http://localhost:8080/api/calculate \
@@ -115,21 +135,9 @@ Response:
 {"result":22,"expression":"12 + 4 * (8 - 3) / 2"}
 ```
 
-More examples:
+### Operation endpoints
 
-```bash
-curl -X POST http://localhost:8080/api/calculate \
-  -H "Content-Type: application/json" \
-  -d '{"expression":"sqrt(81) + 50%"}'
-```
-
-```json
-{"result":9.5,"expression":"sqrt(81) + 50%"}
-```
-
-### Operation Endpoints
-
-These endpoints are included for direct operation-style API calls. They accept multiple operands where the operation logically supports it.
+Run this from any terminal:
 
 ```bash
 curl -X POST http://localhost:8080/api/operations/add \
@@ -137,11 +145,13 @@ curl -X POST http://localhost:8080/api/operations/add \
   -d '{"values":[1,2,3,4]}'
 ```
 
+Response:
+
 ```json
 {"result":10,"operation":"add"}
 ```
 
-Supported operation paths:
+Supported endpoints:
 
 - `/api/operations/add`
 - `/api/operations/subtract`
@@ -151,9 +161,9 @@ Supported operation paths:
 - `/api/operations/sqrt`
 - `/api/operations/percentage`
 
-## Error Examples
+## Error examples
 
-Division by zero returns HTTP `422`:
+### Division by zero
 
 ```bash
 curl -X POST http://localhost:8080/api/calculate \
@@ -161,39 +171,52 @@ curl -X POST http://localhost:8080/api/calculate \
   -d '{"expression":"10 / 0"}'
 ```
 
+Response:
+
 ```json
 {"error":"division by zero"}
 ```
 
-Invalid syntax returns HTTP `400`:
+### Invalid input
+
+```bash
+curl -X POST http://localhost:8080/api/calculate \
+  -H "Content-Type: application/json" \
+  -d '{"expression":"1 +"}'
+```
+
+Response:
 
 ```json
 {"error":"invalid expression: missing operand"}
 ```
 
-## Design Decisions and Assumptions
+## Running tests
 
-- The primary API is expression-based because a full calculator should support chained expressions, precedence, unary minus, and parentheses rather than forcing only two operands.
-- The backend owns calculation correctness. The frontend performs lightweight character validation, but backend validation is authoritative.
-- The parser uses tokenization + shunting-yard conversion to Reverse Polish Notation, then evaluates the RPN stack. This keeps precedence handling explicit and testable.
-- Percent is treated as a postfix unary operator: `50%` becomes `0.5`.
-- `sqrt` is supported as a function: `sqrt(81)`.
-- Division by zero and square root of negative numbers return `422 Unprocessable Entity`; malformed input returns `400 Bad Request`.
-- The frontend is intentionally framework-light: React state, a typed API client, and component-level tests.
-
-## AI Tooling / Prompts Used
-
-The following prompt was used to guide implementation:
-
-> Build a full-stack calculator application with a React TypeScript frontend and a Go backend microservice. Include basic and advanced arithmetic operations, support expressions with more than two operands, validate inputs, handle errors like division by zero, include unit tests, Docker support, and a README with setup instructions, API examples, design decisions, and prompts used.
-
-## Suggested Git Commands
+### Backend tests (run from project root)
 
 ```bash
-git init
-git add .
-git commit -m "Build full-stack calculator application"
-git branch -M main
-git remote add origin <your-repository-url>
-git push -u origin main
+cd backend
+go test ./...
 ```
+
+### Frontend tests (run from project root)
+
+```bash
+cd frontend
+npm test
+```
+
+## Design notes
+
+- The backend parses and validates calculator expressions.
+- The frontend sends expressions to the backend and shows results.
+- The parser uses a standard algorithm for operator precedence.
+- Percent (`%`) is treated as a postfix operator.
+- `sqrt(...)` is supported.
+
+## AI prompt used to build this project
+
+This README and the application were built using the following detailed prompt:
+
+> Build a full-stack calculator application with a React TypeScript frontend and a Go backend microservice. The app should support expression parsing with operator precedence, parentheses, exponentiation, square root, and percentage. Include both frontend and backend unit tests, API endpoints for expressions and named operations, error handling for invalid input and division by zero, responsive UI, and Docker Compose deployment. Write a clear README for beginners that explains where to run commands from the project root, how to start each service, how to use the API, and the exact prompt used to produce the application.

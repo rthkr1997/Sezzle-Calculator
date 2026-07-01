@@ -14,7 +14,7 @@ describe('Calculator', () => {
     render(<Calculator />);
     await userEvent.type(screen.getByLabelText(/expression/i), '12 + 4 * (8 - 3) / 2');
     await userEvent.click(screen.getByRole('button', { name: /calculate/i }));
-    expect(await screen.findByText('22')).toBeInTheDocument();
+    expect(await screen.findByText(/Answer:\s*22/)).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith('http://localhost:8080/api/calculate', expect.objectContaining({ method: 'POST' }));
   });
 
